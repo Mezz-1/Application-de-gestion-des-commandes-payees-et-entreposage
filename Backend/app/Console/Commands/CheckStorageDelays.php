@@ -5,6 +5,8 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Carbon\Carbon;
 use App\Models\Commande;
+use App\Models\Notification;
+use App\Models\Frais;
 use Illuminate\Support\Facades\Mail;
 
 class CheckStorageDelays extends Command
@@ -28,32 +30,30 @@ class CheckStorageDelays extends Command
      */
     public function handle()
     {
-        // 1. Fetch only orders that are NOT fully delivered yet, eager loading the customer profiles
-        $commandes = Commande::where('statut_livraison', '!=', 'livrée')
+        // 1. Fetch orders where status is NOT 'livrée', explicitly including NULL fields!
+        $commandes = Commande::where(function ($query) {
+                                $query->where('statut_livraison', '!=', 'livrée')
+                                      ->orWhereNull('statut_livraison');
+                             })
                              ->with('client')
                              ->get();
 
         $today = Carbon::now();
 
-        // 2. Loop through every active order row
+        // Optional terminal counter for debugging
+        $this->info("Found " . $commandes->count() . " active orders to process.");
+
         foreach ($commandes as $commande) {
             
-            // Calculate total days elapsed in the warehouse since payment
-            $datePaiement = Carbon::parse($commande->date_paiement);
+            $datePaiement = Carbon::parse($commande->date_paiment);
             $daysInStorage = $datePaiement->diffInDays($today);
 
-            // =============================================================
-            // WORKFLOW A: CUSTOMER WAREHOUSE AGING (J+30 & J+60 Rules)
-            // =============================================================
-
-            // THRESHOLD 1: The 30-Day Storage Expiration (J+30)
             if ($daysInStorage >= 30 && $daysInStorage < 60 && $commande->statut_entrepot === 'gratuit') {
                 
                 $commande->statut_entrepot = 'notifie';
                 $commande->save();
 
-                // Log a history tracking footprint into your Notifications table
-                $commande->notifications()->create([
+                $commande->notification()->create([
                     'type' => 'notification',
                     'date_envoi' => $today,
                     'statut' => 'Envoyé'
@@ -83,7 +83,7 @@ class CheckStorageDelays extends Command
                 ]);
 
                 // Log the severe legal alert notification footprint
-                $commande->notifications()->create([
+                $commande->notification()->create([
                     'type' => 'mise_en_demeure',
                     'date_envoi' => $today,
                     'statut' => 'Envoyé'

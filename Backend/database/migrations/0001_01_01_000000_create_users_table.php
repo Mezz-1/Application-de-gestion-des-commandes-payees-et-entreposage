@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id(); 
             $table->string('nom_utilisateur');
             $table->string('email')->unique();
-            $table->string('mot_de_passe');
+            $table->string('mot_de_pass');
             $table->enum('role', ['agent', 'administrateur'])->default('agent');
             $table->timestamps();
         });

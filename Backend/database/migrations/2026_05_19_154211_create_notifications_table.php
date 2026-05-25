@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id('id_notification');
             $table->string('type');
             $table->date("date_envoi");
-            $table->string("string");
+            $table->string("statut");
             $table->foreignId('commande_id')->constrained('commandes', 'id_commande')->onDelete('cascade');
             $table->timestamps();
             

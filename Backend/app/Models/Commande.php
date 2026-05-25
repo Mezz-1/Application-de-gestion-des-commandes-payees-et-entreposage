@@ -10,7 +10,7 @@ class Commande extends Model
 {   
     protected $primaryKey = 'id_commande';
     protected $fillable = [
-        'client',
+        'client_id',
         'date_paiment',
         'montant_ttc',
         'statut_livraison',

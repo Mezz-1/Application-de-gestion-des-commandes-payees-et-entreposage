@@ -11,14 +11,14 @@ class CommandeController extends Controller
 {
     public function index(Request $request){
         $query=Commande::query();
-        if($request->has('status_livraison')){
-            $query->where('status_livraison',$request->statut_livraison);
+        if($request->has('statut_livraison')){
+            $query->where('statut_livraison',$request->statut_livraison);
         }
         if($request->has('statut_entrepot')){
             $query->where('statut_entrepot',$request->statut_entrepot);
         }
-        if(!$request->has('status_livraison')){
-            $query->where('status_livraison','!=','livrée');
+        if(!$request->has('statut_livraison')){
+            $query->where('statut_livraison','!=','livrée');
         }
         $commandes=$query->get();
         return response()->json([
