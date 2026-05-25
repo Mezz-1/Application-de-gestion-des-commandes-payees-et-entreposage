@@ -32,11 +32,11 @@ class CheckStorageDelays extends Command
     {
         // 1. Fetch orders where status is NOT 'livrée', explicitly including NULL fields!
         $commandes = Commande::where(function ($query) {
-                                $query->where('statut_livraison', '!=', 'livrée')
-                                      ->orWhereNull('statut_livraison');
-                             })
-                             ->with('client')
-                             ->get();
+            $query->where('statut_livraison', '!=', 'livrée')
+                ->orWhereNull('statut_livraison');
+        })
+            ->with('client')
+            ->get();
 
         $today = Carbon::now();
 
@@ -44,12 +44,12 @@ class CheckStorageDelays extends Command
         $this->info("Found " . $commandes->count() . " active orders to process.");
 
         foreach ($commandes as $commande) {
-            
+
             $datePaiement = Carbon::parse($commande->date_paiment);
             $daysInStorage = $datePaiement->diffInDays($today);
 
             if ($daysInStorage >= 30 && $daysInStorage < 60 && $commande->statut_entrepot === 'gratuit') {
-                
+
                 $commande->statut_entrepot = 'notifie';
                 $commande->save();
 
@@ -59,15 +59,19 @@ class CheckStorageDelays extends Command
                     'statut' => 'Envoyé'
                 ]);
 
-                // Fire the mail system to the customer's email address
-                Mail::to($commande->client->email)->send(new \App\Mail\RelanceStockage($commande));
-                
+                // 🛠️ Wrap the J+30 Email block like this:
+                if ($commande->client) {
+                    Mail::to($commande->client->email)->send(new \App\Mail\RelanceStockage($commande));
+                } else {
+                    $this->error("Warning: Commande #{$commande->id_commande} has no linked client profile!");
+                }
+
                 $this->info("J+30 Notification triggered for Commande #{$commande->id_commande}");
             }
 
             // THRESHOLD 2: The 60-Day Legal Penalty Window (J+60)
             if ($daysInStorage >= 60 && !$commande->frais_appliqués) {
-                
+
                 // Flip statuses
                 $commande->statut_entrepot = 'mise_en_demeure';
                 $commande->frais_appliqués = true;
@@ -89,8 +93,12 @@ class CheckStorageDelays extends Command
                     'statut' => 'Envoyé'
                 ]);
 
-                // Fire the official legal notice mail to the customer
-                Mail::to($commande->client->email)->send(new \App\Mail\MiseEnDemeureStockage($commande));
+                // 🛠️ Wrap the J+60 Email block like this:
+                if ($commande->client) {
+                    Mail::to($commande->client->email)->send(new \App\Mail\MiseEnDemeureStockage($commande));
+                } else {
+                    $this->error("Warning: Commande #{$commande->id_commande} has no linked client profile!");
+                }
 
                 $this->info("J+60 Penalty Fee ({$montantPenalite} MAD) applied to Commande #{$commande->id_commande}");
             }
@@ -98,22 +106,22 @@ class CheckStorageDelays extends Command
             // =============================================================
             // WORKFLOW B: KITEA DELIVERY DELAYS (J+7 Missed Target Rule)
             // =============================================================
-            
+
             if ($commande->statut_livraison === 'planifiée' && $commande->date_livraison_prevue) {
-                
+
                 $datePrevue = Carbon::parse($commande->date_livraison_prevue);
-                
+
                 // Check if the scheduled delivery target has already passed
                 if ($today->greaterThan($datePrevue)) {
                     $daysDelayedByKitea = $datePrevue->diffInDays($today);
 
                     // Rule: If KITEA is late by more than 7 days, flag it for cancellation eligibility
                     if ($daysDelayedByKitea > 7 && $commande->statut_entrepot !== 'post_delai') {
-                        
+
                         // We flag the order state so the Agent dashboard turns it red/highlights it
-                        $commande->statut_entrepot = 'post_delai'; 
+                        $commande->statut_entrepot = 'post_delai';
                         $commande->save();
-                        
+
                         $this->warn("KITEA Delay: Commande #{$commande->id_commande} is overdue by {$daysDelayedByKitea} days! Eligible for customer cancellation.");
                     }
                 }
