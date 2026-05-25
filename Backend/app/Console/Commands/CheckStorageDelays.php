@@ -44,6 +44,10 @@ class CheckStorageDelays extends Command
         $this->info("Found " . $commandes->count() . " active orders to process.");
 
         foreach ($commandes as $commande) {
+            if ($commande->force_majeure) {
+                $this->warn("Skipping Commande #{$commande->id} - Protected by Force Majeure.");
+                continue;
+            }
 
             $datePaiement = Carbon::parse($commande->date_paiment);
             $daysInStorage = $datePaiement->diffInDays($today);
@@ -92,8 +96,6 @@ class CheckStorageDelays extends Command
                     'date_envoi' => $today,
                     'statut' => 'Envoyé'
                 ]);
-
-                // 🛠️ Wrap the J+60 Email block like this:
                 if ($commande->client) {
                     Mail::to($commande->client->email)->send(new \App\Mail\MiseEnDemeureStockage($commande));
                 } else {
