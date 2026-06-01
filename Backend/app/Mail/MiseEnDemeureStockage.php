@@ -3,23 +3,25 @@
 namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Queue\SerializesModels;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class MiseEnDemeureStockage extends Mailable
 {
     use Queueable, SerializesModels;
+
     public $commande;
+
     /**
      * Create a new message instance.
      */
     public function __construct(\App\Models\Commande $commande)
     {
-        $this->commande=$commande;
+        $this->commande = $commande;
     }
 
     /**
@@ -44,11 +46,16 @@ class MiseEnDemeureStockage extends Mailable
 
     /**
      * Get the attachments for the message.
-     *
-     * @return array<int, Attachment>
      */
     public function attachments(): array
     {
-        return [];
+        // Automatically compile the legal PDF template on-the-fly using the shared view
+        $pdf = Pdf::loadView('pdf.mise_en_demeure', ['commande' => $this->commande]);
+        $pdf->setPaper('A4', 'portrait');
+
+        return [
+            Attachment::fromData(fn () => $pdf->output(), 'KITEA_Mise_En_Demeure_Commande_' . $this->commande->id . '.pdf')
+                ->withMime('application/pdf'),
+        ];
     }
 }

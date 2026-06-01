@@ -5,8 +5,10 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Commande;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
+use Illuminate\Http\Response;
 
 class CommandeController extends Controller
 {
@@ -60,7 +62,7 @@ class CommandeController extends Controller
         // Updated to include structural default states for PFE specifications
         $commande = Commande::create([
             'client' => $request->client,
-            'date_paiement' => $request->date_paiement,
+            'date_paiment' => $request->date_paiement,
             'montant_ttc' => $request->montant_ttc,
             'statut_livraison' => 'non planifiée', 
             'date_livraison_prevue' => null,
@@ -127,16 +129,12 @@ class CommandeController extends Controller
                 'message' => 'Commande introuvable.'
             ], 404);
         }
-
-        // Rule 1: Case Force Majeure locks compensation/cancellation workflows
         if ($commande->force_majeure) {
             return response()->json([
                 'success' => false,
                 'message' => 'Annulation bloquée : Le retard de livraison est protégé par un cas de Force Majeure.'
             ], 403);
         }
-
-        // Rule 2: Ensure it has a scheduled delivery target to evaluate
         if ($commande->statut_livraison !== 'planifiée' || !$commande->date_livraison_prevue) {
             return response()->json([
                 'success' => false,
@@ -146,16 +144,12 @@ class CommandeController extends Controller
 
         $datePrevue = Carbon::parse($commande->date_livraison_prevue);
         $today = Carbon::now();
-
-        // Rule 3: Check if delay strictly exceeds 7 days
         if (!$today->greaterThan($datePrevue) || $datePrevue->diffInDays($today) <= 7) {
             return response()->json([
                 'success' => false,
                 'message' => 'Annulation refusée : Le retard de livraison KITEA est inférieur au seuil réglementaire de 7 jours.'
             ], 400);
         }
-
-        // Rule 4: Execute operational cancellation & calculate 15-day refund timeline
         $commande->update([
             'statut_livraison' => 'annulée',
             'statut_entrepot' => 'annulee',
@@ -197,5 +191,26 @@ class CommandeController extends Controller
             'message' => $statusMessage,
             'data' => $commande
         ], 200);
+    }
+    public function telechargerMiseEnDemeuere($id){
+        $commande=Commande::find($id);
+        if(!$commande){
+            return response()->json([
+                'success'=>false,
+                'message'=>'Commande introuvable'
+
+            ],404);
+        }
+        if($commande->statut_entrepot!='mise_en_demeure'){
+            return response()->json([
+                'status'=>false,
+                
+                'message'=>'Cette commande n\'est pas encore au stade de mise en demeure.'
+            ],400);
+        }
+        $pdf=Pdf::loadView('pdf.mise_en_demeure',compact('commande'));
+        $pdf->setPaper('A4','portrait');
+        $nomFichier = 'KITEA_Mise_En_Demeure_Commande_' . $commande->id . '.pdf';
+        return $pdf->download($nomFichier);
     }
 }

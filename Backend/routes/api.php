@@ -17,6 +17,7 @@ Route::post('/commandes/{id}/planifier-livraison', [CommandeController::class, '
 Route::post('/commandes/{id}/annuler', [CommandeController::class, 'annulerCommande']);
 Route::post('/commandes/{id}/toggle-force-majeure', [CommandeController::class, 'basculerForceMajeure']);
 Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
+Route::get('/commandes/{id}/pdf-mise-en-demeure',[CommandeController::class, 'telechargerMiseEnDemeuere']);
 
 Route::middleware('auth:sanctum')->group(function () {
 

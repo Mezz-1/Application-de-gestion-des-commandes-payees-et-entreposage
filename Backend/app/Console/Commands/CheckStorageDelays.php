@@ -105,9 +105,6 @@ class CheckStorageDelays extends Command
                 $this->info("J+60 Penalty Fee ({$montantPenalite} MAD) applied to Commande #{$commande->id_commande}");
             }
 
-            // =============================================================
-            // WORKFLOW B: KITEA DELIVERY DELAYS (J+7 Missed Target Rule)
-            // =============================================================
 
             if ($commande->statut_livraison === 'planifiée' && $commande->date_livraison_prevue) {
 
