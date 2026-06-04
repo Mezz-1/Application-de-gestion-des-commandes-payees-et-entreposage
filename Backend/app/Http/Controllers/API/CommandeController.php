@@ -31,7 +31,7 @@ class CommandeController extends Controller
             $query->where('statut_livraison', '!=', 'livrée');
         }
 
-        $commandes = $query->get();
+        $commandes = $query->with('client')->get();
 
         return response()->json([
             'success' => true,
@@ -64,7 +64,7 @@ class CommandeController extends Controller
             'client' => $request->client,
             'date_paiment' => $request->date_paiement,
             'montant_ttc' => $request->montant_ttc,
-            'statut_livraison' => 'non planifiée', 
+            'statut_livraison' => 'non planifiée',
             'date_livraison_prevue' => null,
             'statut_entrepot' => 'gratuit',
             'frais_appliqués' => false,
@@ -92,6 +92,20 @@ class CommandeController extends Controller
                 'message' => 'Commande introuvable.'
             ], 404);
         }
+        if (trim(strtolower($commande->statut_entrepot)) === 'post_delai') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Action refusée : Le délai réglementaire d\'entreposage gratuit est dépassé. Ce dossier est bloqué.'
+            ], 403);
+        }
+        $status = trim(mb_strtolower($commande->statut_entrepot, 'UTF-8'));
+
+        if ($status === 'annulée' || $status === 'annulee') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Action refusée : Impossible de planifier une livraison sur une commande annulée.'
+            ], 403);
+        }
 
         $validator = Validator::make($request->all(), [
             'date_livraison_prevue' => 'required|date|after_or_equal:' . $commande->date_paiement,
@@ -106,7 +120,7 @@ class CommandeController extends Controller
 
         $commande->update([
             'date_livraison_prevue' => $request->date_livraison_prevue,
-            'statut_livraison' => 'planifiée' 
+            'statut_livraison' => 'planifiée'
         ]);
 
         return response()->json([
@@ -162,7 +176,7 @@ class CommandeController extends Controller
             'success' => true,
             'message' => 'Demande d’annulation validée avec succès (Simulation LRAR reçue).',
             'data' => [
-                'id_commande' => $commande->id, 
+                'id_commande' => $commande->id,
                 'montant_remboursement' => $commande->montant_ttc . ' MAD',
                 'date_annulation' => $commande->date_annulation,
                 'date_limite_remboursement' => $commande->date_limite_remboursement,
@@ -173,7 +187,14 @@ class CommandeController extends Controller
     public function basculerForceMajeure(Request $request, $id)
     {
         $commande = Commande::findOrFail($id);
-        
+        $status = trim(mb_strtolower($commande->statut_entrepot, 'UTF-8'));
+        if ($status === 'annulée' || $status === 'annulee') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Action refusée : Impossible de modifier la clause de Force Majeure sur une commande annulée.'
+            ], 403);
+        }
+
         $request->validate([
             'force_majeure' => 'required|boolean'
         ]);
@@ -182,8 +203,8 @@ class CommandeController extends Controller
             'force_majeure' => $request->force_majeure
         ]);
 
-        $statusMessage = $commande->force_majeure 
-            ? 'Cas de Force Majeure activé. Les pénalités et annulations sont gelées.' 
+        $statusMessage = $commande->force_majeure
+            ? 'Cas de Force Majeure activé. Les pénalités et annulations sont gelées.'
             : 'Cas de Force Majeure désactivé. Le cycle standard reprend.';
 
         return response()->json([
@@ -192,24 +213,25 @@ class CommandeController extends Controller
             'data' => $commande
         ], 200);
     }
-    public function telechargerMiseEnDemeuere($id){
-        $commande=Commande::find($id);
-        if(!$commande){
+    public function telechargerMiseEnDemeuere($id)
+    {
+        $commande = Commande::find($id);
+        if (!$commande) {
             return response()->json([
-                'success'=>false,
-                'message'=>'Commande introuvable'
+                'success' => false,
+                'message' => 'Commande introuvable'
 
-            ],404);
+            ], 404);
         }
-        if($commande->statut_entrepot!='mise_en_demeure'){
+        if ($commande->statut_entrepot != 'mise_en_demeure') {
             return response()->json([
-                'status'=>false,
-                
-                'message'=>'Cette commande n\'est pas encore au stade de mise en demeure.'
-            ],400);
+                'status' => false,
+
+                'message' => 'Cette commande n\'est pas encore au stade de mise en demeure.'
+            ], 400);
         }
-        $pdf=Pdf::loadView('pdf.mise_en_demeure',compact('commande'));
-        $pdf->setPaper('A4','portrait');
+        $pdf = Pdf::loadView('pdf.mise_en_demeure', compact('commande'));
+        $pdf->setPaper('A4', 'portrait');
         $nomFichier = 'KITEA_Mise_En_Demeure_Commande_' . $commande->id . '.pdf';
         return $pdf->download($nomFichier);
     }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Commande;
 use App\Models\Frais;
+use App\Models\Notification;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
@@ -46,6 +47,24 @@ class DashboardController extends Controller
                 'retards_livraison_kitea'  => $delayedShipments,
                 'cas_force_majeure_actifs' => $activeForceMajeure,
             ]
+        ], 200);
+    }
+    public function historiqueAlertes(){
+        $notifications=Notification::with('commandes')->orderBy('date_envoi','desc')->get();
+        return response()->json([
+        'success' => true,
+        'count'   => $notifications->count(),
+        'data'    => $notifications,
+    ], 200);
+    }
+    public function getPenaltyLogs()
+    {
+        $frais = Frais::with('commande.client')->orderBy('date_application', 'desc')->get();
+        
+        return response()->json([
+            'success' => true,
+            'total_accumulated' => $frais->sum('montant'),
+            'data' => $frais
         ], 200);
     }
 }

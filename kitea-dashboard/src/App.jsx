@@ -1,61 +1,89 @@
-import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './components/Login';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
-//import OrderManagementPage from './pages/OrderManagementPage'; // Make sure the path matches your structure
+import OrderManagementPage from './pages/OrderManagementPage';
+import AlertsHistoryPage from './pages/AlertHistoryPage';
+import OrdersGardePage from './pages/OrderGardePage';
+import Login from './components/Login';
 
 export default function App() {
-  // Authentication state manager
-  const [user, setUser] = useState(null);
-
-  // 🔒 Professional Auth Guard Layout Wrapper
-  // If a user isn't logged in, it forcefully redirects them to /login
+  const [user, setUser] = useState(()=>{
+    const savedUser=localStorage.getItem('auth_user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
+  const [loading,setLoading]=useState(false);
+  useEffect(()=>{
+    const token=localStorage.getItem('auth_token');
+    const savedUser=localStorage.getItem('auth_user');
+    if(token && savedUser){
+      setUser(JSON.parse(savedUser));
+    }
+    else{
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auht_user');
+      setUser(null)
+    }
+    setLoading(false);
+  },[]);
+  const handleLoginSuccess=(userData,token)=>{
+    setUser(userData)
+    localStorage.getItem('auth_user',JSON.stringify(userData));
+    if(token){
+      localStorage.getItem('auth_token');
+    }
+  }
+  const handleLogout = () =>{
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
+    setUser(null);
+  }
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center font-sans">
+        <div className="flex flex-col items-center space-y-3">
+          <div className="w-8 h-8 border-4 border-[#E30613] border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest animate-pulse">
+            Vérification de session...
+          </p>
+        </div>
+      </div>
+    );
+  }
   const ProtectedRoute = ({ children }) => {
-    if (!user) {
-      return <Navigate to="/login" replace />;
+    const token = localStorage.getItem('auth_token');
+    if (!user || !token) {
+      return <Navigate to="/Login" replace />;
     }
     return children;
   };
-
   return (
-    <Router>
+    <BrowserRouter>
       <Routes>
-        {/* Public Route */}
         <Route 
-          path="/login" 
+          path="/Login" 
           element={
-            user ? (
+            user && localStorage.getItem('auth_token') ? (
               <Navigate to="/dashboard" replace />
             ) : (
-              <Login onLoginSuccess={(userData) => setUser(userData)} />
+              <Login onLoginSuccess={(u) => handleLoginSuccess(u)} />
             )
           } 
         />
-
-        <Route 
-          path="/dashboard" 
+        <Route
           element={
             <ProtectedRoute>
-              <Dashboard user={user} />
+              <Layout user={user} onLogout={handleLogout} />
             </ProtectedRoute>
-          } 
-        />
-
-        {/* <Route 
-          path="/orders/manage/:id_commande" 
-          element={
-            <ProtectedRoute>
-              <OrderManagementPage user={user} />
-            </ProtectedRoute>
-          } 
-        /> */}
-
-        {/* Global Catch-all Fallback Redirect */}
-        <Route 
-          path="*" 
-          element={<Navigate to={user ? "/dashboard" : "/login"} replace />} 
-        />
+          }
+        >
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/commande/:id_commande" element={<OrderManagementPage user={user} />} />
+          <Route path="/historique-alertes" element={<AlertsHistoryPage />} />
+          <Route path="/commandes-en-garde" element={<OrdersGardePage />} />
+        </Route>
+        <Route path="*" element={<Navigate to={user ? "/dashboard" : "/Login"} replace />} />
       </Routes>
-    </Router>
+    </BrowserRouter>
   );
 }
