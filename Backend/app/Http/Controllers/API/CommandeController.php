@@ -47,7 +47,7 @@ class CommandeController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'client' => 'required|string|max:255',
-            'date_paiement' => 'required|date',
+            'date_paiment' => 'required|date',
             'montant_ttc' => 'required|numeric',
         ]);
 
@@ -62,7 +62,7 @@ class CommandeController extends Controller
         // Updated to include structural default states for PFE specifications
         $commande = Commande::create([
             'client' => $request->client,
-            'date_paiment' => $request->date_paiement,
+            'date_paiment' => $request->date_paiment,
             'montant_ttc' => $request->montant_ttc,
             'statut_livraison' => 'non planifiée',
             'date_livraison_prevue' => null,
@@ -108,7 +108,7 @@ class CommandeController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'date_livraison_prevue' => 'required|date|after_or_equal:' . $commande->date_paiement,
+            'date_livraison_prevue' => 'required|date|after_or_equal:' . $commande->date_paiment,
         ]);
 
         if ($validator->fails()) {
@@ -117,10 +117,12 @@ class CommandeController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
+        $agentId=auth()->id();
 
         $commande->update([
             'date_livraison_prevue' => $request->date_livraison_prevue,
-            'statut_livraison' => 'planifiée'
+            'statut_livraison' => 'planifiée',
+            'user_id'=>$agentId,
         ]);
 
         return response()->json([
@@ -188,10 +190,16 @@ class CommandeController extends Controller
     {
         $commande = Commande::findOrFail($id);
         $status = trim(mb_strtolower($commande->statut_entrepot, 'UTF-8'));
-        if ($status === 'annulée' || $status === 'annulee') {
+
+        if (
+            $status === 'annulée' ||
+            $status === 'annulee' ||
+            $status === 'mise_en_demeure' 
+            (($status === 'gratuit'|| $status === 'notifie') && is_null($commande->date_livraison_prevue))
+        ) {
             return response()->json([
                 'success' => false,
-                'message' => 'Action refusée : Impossible de modifier la clause de Force Majeure sur une commande annulée.'
+                'message' => 'Action refusée : Impossible d\'appliquer la Force Majeure sur une commande non planifiée ou clôturée.'
             ], 403);
         }
 
@@ -200,7 +208,8 @@ class CommandeController extends Controller
         ]);
 
         $commande->update([
-            'force_majeure' => $request->force_majeure
+            'force_majeure' => $request->force_majeure,
+            // 'user_id'=>$request->users->id_user
         ]);
 
         $statusMessage = $commande->force_majeure

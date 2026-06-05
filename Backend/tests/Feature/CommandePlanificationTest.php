@@ -17,8 +17,6 @@ class CommandePlanificationTest extends TestCase
         // 0. Authenticate an operator to bypass the 401 middleware restriction
         $user = User::factory()->create();
         $this->actingAs($user);
-
-        // 1. Create a dummy canceled order (Using valid enum value for delivery)
         $commande = Commande::create([
             'id_commande' => 101,
             'date_paiment' => now()->subDays(5),
