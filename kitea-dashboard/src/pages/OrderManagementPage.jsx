@@ -160,7 +160,7 @@ export default function OrderManagementPage({ user }) {
           <span className="text-gray-900 font-bold">Dossier Commande #{order.id_commande}</span>
         </div>
         <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-          Opérateur central : <span className="text-gray-800 font-extrabold">{user?.nom || "Admin Logistique"}</span>
+          Opérateur central : <span className="text-gray-800 font-extrabold">{user?.nom || "Agent"}</span>
         </div>
       </div>
 

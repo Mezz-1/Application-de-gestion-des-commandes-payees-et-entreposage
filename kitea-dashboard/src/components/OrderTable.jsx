@@ -1,7 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-// 🏷️ Centralized design configurations for warehouse states
 const STATUS_CONFIG = {
     force_majeure: {
         bg: 'bg-purple-50 hover:bg-purple-100/50',
@@ -48,6 +47,11 @@ const STATUS_CONFIG = {
 };
 
 export default function OrderTable({ orders = [] }) {
+    // --- Pagination State ---
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+
+    // --- Helper to parse Client Names ---
     const getClientName = (clientData) => {
         if (!clientData) return "Client Inconnu";
         if (typeof clientData === 'object') return clientData.nom_complet || "Client Inconnu";
@@ -62,6 +66,21 @@ export default function OrderTable({ orders = [] }) {
         }
         return "Client Inconnu";
     };
+
+    // --- Pagination Math Logic ---
+    const totalPages = Math.ceil(orders.length / itemsPerPage);
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentOrders = orders.slice(indexOfFirstItem, indexOfLastItem);
+
+    const handlePageChange = (pageNumber) => {
+        setCurrentPage(pageNumber);
+    };
+
+    // Reset page to 1 if filters external to this component reduce the list size
+    if (currentPage > totalPages && totalPages > 0) {
+        setCurrentPage(totalPages);
+    }
 
     return (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -78,15 +97,15 @@ export default function OrderTable({ orders = [] }) {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 text-xs text-gray-600 font-medium">
-                        {orders.length === 0 ? (
+                        {currentOrders.length === 0 ? (
                             <tr>
                                 <td colSpan="6" className="p-12 text-center text-gray-400 font-bold bg-gray-50/30">
                                     📦 Aucun dossier ne correspond à vos critères de filtrage actuels.
                                 </td>
                             </tr>
                         ) : (
-                            orders.map(order => {
-                                const stateKey = order.force_majeure ? 'force_majeure' : (order.statut_entrepot);
+                            currentOrders.map(order => {
+                                const stateKey = order.force_majeure ? 'force_majeure' : order.statut_entrepot;
                                 const style = STATUS_CONFIG[stateKey] || STATUS_CONFIG.default;
 
                                 return (
@@ -101,7 +120,7 @@ export default function OrderTable({ orders = [] }) {
                                             {getClientName(order.client || order.nom_client)}
                                         </td>
                                         <td className="p-4 text-gray-400 font-normal">
-                                            {order.date_paiment}
+                                            {order.date_paiment || order.date_paiement}
                                         </td>
                                         <td className="p-4 font-bold text-gray-900 tracking-tight">
                                             {Number(order.montant_ttc).toLocaleString('fr-MA')} <span className="text-[10px] text-gray-400 font-normal">MAD</span>
@@ -125,6 +144,79 @@ export default function OrderTable({ orders = [] }) {
                     </tbody>
                 </table>
             </div>
+
+            {/* --- Pagination Footer Controls --- */}
+            {orders.length > itemsPerPage && (
+                <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex items-center justify-between sm:px-6">
+                    {/* Mobile layout view */}
+                    <div className="flex-1 flex justify-between sm:hidden">
+                        <button
+                            onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
+                            disabled={currentPage === 1}
+                            className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-xs font-bold rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-40 select-none transition-colors"
+                        >
+                            Précédent
+                        </button>
+                        <button
+                            onClick={() => handlePageChange(Math.min(currentPage + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                            className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-xs font-bold rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-40 select-none transition-colors"
+                        >
+                            Suivant
+                        </button>
+                    </div>
+
+                    {/* Desktop layout view */}
+                    <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                        <div>
+                            <p className="text-xs text-gray-500">
+                                Affichage de <span className="font-bold text-gray-900">{indexOfFirstItem + 1}</span> à{' '}
+                                <span className="font-bold text-gray-900">
+                                    {Math.min(indexOfLastItem, orders.length)}
+                                </span>{' '}
+                                sur <span className="font-bold text-gray-900">{orders.length}</span> dossiers
+                            </p>
+                        </div>
+                        <div>
+                            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-1" aria-label="Pagination">
+                                <button
+                                    onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
+                                    disabled={currentPage === 1}
+                                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-xs font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-40 select-none"
+                                >
+                                    &larr;
+                                </button>
+                                
+                                {[...Array(totalPages)].map((_, index) => {
+                                    const pageNumber = index + 1;
+                                    return (
+                                        <button
+                                            key={pageNumber}
+                                            onClick={() => handlePageChange(pageNumber)}
+                                            className={`relative inline-flex items-center px-4 py-2 border text-xs font-bold transition-colors ${
+                                                currentPage === pageNumber
+                                                    ? 'z-10 bg-gray-900 border-gray-900 text-white'
+                                                    : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            {pageNumber}
+                                        </button>
+                                    );
+                                })}
+
+                                <button
+                                    onClick={() => handlePageChange(Math.min(currentPage + 1, totalPages))}
+                                    disabled={currentPage === totalPages}
+                                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-xs font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-40 select-none"
+                                >
+                                    &rarr;
+                                </button>
+                                
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

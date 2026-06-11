@@ -46,7 +46,8 @@ class CommandeController extends Controller
     public function importerDepuisErp(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'client' => 'required|string|max:255',
+            'commande_id'   => 'required|string|unique:commandes,commande_id|max:100',
+            'client_id'     => 'required|exists:clients,id_client',
             'date_paiment' => 'required|date',
             'montant_ttc' => 'required|numeric',
         ]);
@@ -58,10 +59,9 @@ class CommandeController extends Controller
                 'errors' => $validator->errors(),
             ], 422);
         }
-
-        // Updated to include structural default states for PFE specifications
         $commande = Commande::create([
-            'client' => $request->client,
+            'commmande_id' => $request->commande_id,
+            'client_id' => $request->client_id,
             'date_paiment' => $request->date_paiment,
             'montant_ttc' => $request->montant_ttc,
             'statut_livraison' => 'non planifiée',
@@ -74,7 +74,7 @@ class CommandeController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Commande importée avec succès via REST API.',
+            'message' => 'Commande importée avec succès depuis (Microsoft ERP Ax) via REST API.',
             'data' => $commande
         ], 201);
     }
@@ -117,12 +117,12 @@ class CommandeController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
-        $agentId=auth()->id();
+        $agentId = auth()->id();
 
         $commande->update([
             'date_livraison_prevue' => $request->date_livraison_prevue,
             'statut_livraison' => 'planifiée',
-            'user_id'=>$agentId,
+            'user_id' => $agentId,
         ]);
 
         return response()->json([
@@ -194,8 +194,7 @@ class CommandeController extends Controller
         if (
             $status === 'annulée' ||
             $status === 'annulee' ||
-            $status === 'mise_en_demeure' 
-            (($status === 'gratuit'|| $status === 'notifie') && is_null($commande->date_livraison_prevue))
+            $status === 'mise_en_demeure'
         ) {
             return response()->json([
                 'success' => false,

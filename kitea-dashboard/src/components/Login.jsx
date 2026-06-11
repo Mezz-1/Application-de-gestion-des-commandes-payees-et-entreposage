@@ -44,7 +44,6 @@ export default function Login({ onLoginSuccess }) {
                 localStorage.setItem('auth_token', response.data.token);
                 localStorage.setItem('auth_user', JSON.stringify(userPayload));
                 onLoginSuccess(userPayload, response.data.token);
-
                 navigate('/dashboard');
             }
         } catch (err) {
