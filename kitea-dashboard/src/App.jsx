@@ -8,36 +8,41 @@ import OrdersGardePage from './pages/OrderGardePage';
 import Login from './components/Login';
 
 export default function App() {
-  const [user, setUser] = useState(()=>{
-    const savedUser=localStorage.getItem('auth_user');
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('auth_user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
-  const [loading,setLoading]=useState(false);
-  useEffect(()=>{
-    const token=localStorage.getItem('auth_token');
-    const savedUser=localStorage.getItem('auth_user');
-    if(token && savedUser){
+  
+  const [loading, setLoading] = useState(true); // Commencer à true pour valider la session au démarrage
+
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    const savedUser = localStorage.getItem('auth_user');
+    
+    if (token && savedUser) {
       setUser(JSON.parse(savedUser));
-    }
-    else{
+    } else {
       localStorage.removeItem('auth_token');
-      localStorage.removeItem('auht_user');
-      setUser(null)
+      localStorage.removeItem('auth_user'); // Correction de la faute de frappe 'auht_user'
+      setUser(null);
     }
     setLoading(false);
-  },[]);
-  const handleLoginSuccess=(userData,token)=>{
-    setUser(userData)
-    localStorage.getItem('auth_user',JSON.stringify(userData));
-    if(token){
-      localStorage.getItem('auth_token');
+  }, []);
+
+  const handleLoginSuccess = (userData, token) => {
+    setUser(userData);
+    localStorage.setItem('auth_user', JSON.stringify(userData)); // Correction: setItem au lieu de getItem
+    if (token) {
+      localStorage.setItem('auth_token', token); // Correction: setItem au lieu de getItem
     }
-  }
-  const handleLogout = () =>{
+  };
+
+  const handleLogout = () => {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_user');
     setUser(null);
-  }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center font-sans">
@@ -50,26 +55,30 @@ export default function App() {
       </div>
     );
   }
+
   const ProtectedRoute = ({ children }) => {
     const token = localStorage.getItem('auth_token');
     if (!user || !token) {
-      return <Navigate to="/Login" replace />;
+      return <Navigate to="/login" replace />;
     }
     return children;
   };
+
   return (
     <BrowserRouter>
       <Routes>
         <Route 
-          path="/Login" 
+          path="/login" 
           element={
             user && localStorage.getItem('auth_token') ? (
               <Navigate to="/dashboard" replace />
             ) : (
-              <Login onLoginSuccess={(u) => handleLoginSuccess(u)} />
+              // On s'assure de bien intercepter le token renvoyé par l'API lors du login
+              <Login onLoginSuccess={(u, t) => handleLoginSuccess(u, t)} />
             )
           } 
         />
+        
         <Route
           element={
             <ProtectedRoute>
@@ -82,7 +91,8 @@ export default function App() {
           <Route path="/historique-alertes" element={<AlertsHistoryPage />} />
           <Route path="/commandes-en-garde" element={<OrdersGardePage />} />
         </Route>
-        <Route path="*" element={<Navigate to={user ? "/dashboard" : "/Login"} replace />} />
+        
+        <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
       </Routes>
     </BrowserRouter>
   );

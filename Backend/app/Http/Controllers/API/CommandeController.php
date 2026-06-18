@@ -60,7 +60,7 @@ class CommandeController extends Controller
             ], 422);
         }
         $commande = Commande::create([
-            'commmande_id' => $request->commande_id,
+            'commande_id' => $request->commande_id,
             'client_id' => $request->client_id,
             'date_paiment' => $request->date_paiment,
             'montant_ttc' => $request->montant_ttc,

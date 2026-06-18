@@ -21,7 +21,6 @@ export default function Sidebar({ user, onLogout }) {
   return (
     <aside className="w-64 bg-white text-gray-700 flex flex-col shadow-2xl shrink-0 border-r border-gray-100 h-screen select-none font-sans relative z-20">
       
-      {/* 🌟 BRAND LOGO HEADER OVERHAUL */}
       <div className="p-6 border-b border-gray-100 flex flex-col items-center bg-gradient-to-b from-gray-50/50 to-white">
         <div className="w-full max-w-[140px] h-14 flex items-center justify-center overflow-hidden rounded-xl bg-white p-2 border border-gray-100/80 shadow-xs transition-transform duration-300 hover:scale-102">
           <img 

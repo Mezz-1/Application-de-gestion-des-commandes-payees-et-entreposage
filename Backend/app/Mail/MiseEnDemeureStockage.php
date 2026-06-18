@@ -30,7 +30,7 @@ class MiseEnDemeureStockage extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: '⚖️ KITEA - Notification Officielle : Application de pénalités de stockage #' . $this->commande->id_commande,
+            subject: ' KITEA - Notification Officielle : Application de pénalités de stockage #' . $this->commande->id_commande,
         );
     }
 
