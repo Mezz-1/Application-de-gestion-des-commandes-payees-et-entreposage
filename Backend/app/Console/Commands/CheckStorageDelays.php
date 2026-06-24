@@ -40,19 +40,37 @@ class CheckStorageDelays extends Command
 
         $today = Carbon::now();
 
-        // Optional terminal counter for debugging
         $this->info("Found " . $commandes->count() . " active orders to process.");
 
         foreach ($commandes as $commande) {
             if ($commande->force_majeure) {
-                $this->warn("Skipping Commande #{$commande->id} - Protected by Force Majeure.");
+                $dejaNotifie = $commande->notification()
+                    ->where('type', 'force_majeure')
+                    ->exists();
+
+                if (!$dejaNotifie) {
+                    $commande->notification()->create([
+                        'type' => 'force_majeure',
+                        'date_envoi' => $today,
+                        'statut' => 'Envoyé'
+                    ]);
+
+                    if ($commande->client) {
+                        Mail::to($commande->client->email)->send(new \App\Mail\ForceMajeureStockage($commande));
+                        $this->info("Force Majeure Notification & Mail sent for Commande #{$commande->id_commande}");
+                    } else {
+                        $this->error("Warning: Commande #{$commande->id_commande} is in Force Majeure but has no linked client profile!");
+                    }
+                }
+
+                $this->warn("Skipping Commande #{$commande->id_commande} - Protected by Force Majeure.");
                 continue;
             }
 
             $datePaiement = Carbon::parse($commande->date_paiment);
             $daysInStorage = $datePaiement->diffInDays($today);
 
-            if ($daysInStorage >= 30 && $daysInStorage < 60 && $commande->statut_entrepot === 'gratuit') {
+            if ($daysInStorage >= 30 && $daysInStorage < 60 && $commande->statut_entrepot === 'gratuit' && !$commande->date_livraison_prevue ) {
 
                 $commande->statut_entrepot = 'notifie';
                 $commande->save();
@@ -63,7 +81,6 @@ class CheckStorageDelays extends Command
                     'statut' => 'Envoyé'
                 ]);
 
-                // 🛠️ Wrap the J+30 Email block like this:
                 if ($commande->client) {
                     Mail::to($commande->client->email)->send(new \App\Mail\RelanceStockage($commande));
                 } else {
@@ -73,24 +90,19 @@ class CheckStorageDelays extends Command
                 $this->info("J+30 Notification triggered for Commande #{$commande->id_commande}");
             }
 
-            // THRESHOLD 2: The 60-Day Legal Penalty Window (J+60)
-            if ($daysInStorage >= 60 && !$commande->frais_appliqués) {
+            if ($daysInStorage >= 60 && !$commande->frais_appliqués && !$commande->date_livraison_prevue) {
 
-                // Flip statuses
                 $commande->statut_entrepot = 'mise_en_demeure';
                 $commande->frais_appliqués = true;
                 $commande->save();
 
-                // Calculate the 10% penalty charge precisely
                 $montantPenalite = $commande->montant_ttc * 0.10;
 
-                // Insert a matching penalty logging row into your Frais table
                 $commande->frais()->create([
                     'montant' => $montantPenalite,
                     'date_application' => $today
                 ]);
 
-                // Log the severe legal alert notification footprint
                 $commande->notification()->create([
                     'type' => 'mise_en_demeure',
                     'date_envoi' => $today,
@@ -114,10 +126,7 @@ class CheckStorageDelays extends Command
                 if ($today->greaterThan($datePrevue)) {
                     $daysDelayedByKitea = $datePrevue->diffInDays($today);
 
-                    // Rule: If KITEA is late by more than 7 days, flag it for cancellation eligibility
                     if ($daysDelayedByKitea > 7 && $commande->statut_entrepot !== 'post_delai') {
-
-                        // We flag the order state so the Agent dashboard turns it red/highlights it
                         $commande->statut_entrepot = 'post_delai';
                         $commande->save();
 

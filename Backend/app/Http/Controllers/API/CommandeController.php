@@ -50,6 +50,7 @@ class CommandeController extends Controller
             'client_id'     => 'required|exists:clients,id_client',
             'date_paiment' => 'required|date',
             'montant_ttc' => 'required|numeric',
+            'statut_livraison' => 'required|string'
         ]);
 
         if ($validator->fails()) {
@@ -64,7 +65,7 @@ class CommandeController extends Controller
             'client_id' => $request->client_id,
             'date_paiment' => $request->date_paiment,
             'montant_ttc' => $request->montant_ttc,
-            'statut_livraison' => 'non planifiée',
+            'statut_livraison' => $request->statut_livraison,
             'date_livraison_prevue' => null,
             'statut_entrepot' => 'gratuit',
             'frais_appliqués' => false,
@@ -92,12 +93,14 @@ class CommandeController extends Controller
                 'message' => 'Commande introuvable.'
             ], 404);
         }
+
         if (trim(strtolower($commande->statut_entrepot)) === 'post_delai') {
             return response()->json([
                 'success' => false,
                 'message' => 'Action refusée : Le délai réglementaire d\'entreposage gratuit est dépassé. Ce dossier est bloqué.'
             ], 403);
         }
+
         $status = trim(mb_strtolower($commande->statut_entrepot, 'UTF-8'));
 
         if ($status === 'annulée' || $status === 'annulee') {
@@ -107,8 +110,9 @@ class CommandeController extends Controller
             ], 403);
         }
 
+        // Application de la double contrainte temporelle (Post-paiement ERP et Date future/présente)
         $validator = Validator::make($request->all(), [
-            'date_livraison_prevue' => 'required|date|after_or_equal:' . $commande->date_paiment,
+            'date_livraison_prevue' => 'required|date|after_or_equal:' . $commande->date_paiment . '|after_or_equal:today',
         ]);
 
         if ($validator->fails()) {
@@ -117,6 +121,7 @@ class CommandeController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
+
         $agentId = auth()->id();
 
         $commande->update([

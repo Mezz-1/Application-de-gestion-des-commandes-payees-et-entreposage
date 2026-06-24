@@ -15,9 +15,9 @@ return new class extends Migration
             $table->id('id_commande');
             $table->dateTime('date_paiment');
             $table->decimal('montant_ttc', 10, 2);
-            $table->enum('statut_livraison', ['non_planifiée', 'planifiée', 'livrée'])->default('non_planifiée');
+            $table->enum('statut_livraison', ['non_planifiée', 'planifiée', 'livrée','annulée'])->default('non_planifiée');
             $table->dateTime('date_livraison_prevue')->nullable();
-            $table->enum('statut_entrepot', ['gratuit', 'notifie', 'mise_en_demeure', 'post_delai'])->default('gratuit');
+            $table->enum('statut_entrepot', ['gratuit', 'notifie', 'mise_en_demeure', 'post_delai','annulee'])->default('gratuit');
             $table->boolean('frais_appliqués')->default(false);
             $table->foreignId('user_id')->nullable()->constrained('users','id')->onDelete('set null');
             $table->foreignId('client_id')->nullable()->constrained('clients','id_client')->onDelete('set null');

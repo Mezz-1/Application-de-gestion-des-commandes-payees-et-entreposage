@@ -8,7 +8,7 @@ const STATUS_CONFIG = {
     notifie: { bg: 'bg-amber-50/40 hover:bg-amber-50/70', border: 'border-amber-500', badge: 'bg-amber-100 text-amber-800', label: 'Notifié (J+30)' },
     gratuit: { bg: 'bg-white hover:bg-gray-50', border: 'border-emerald-500', badge: 'bg-emerald-100 text-emerald-800', label: 'Phase Gratuite' },
     post_delai: { bg: 'bg-red-50/30 hover:bg-red-50/50 transition-colors', border: 'border-red-200', badge: 'bg-red-100 text-[#B12024] font-black uppercase tracking-wider', label: 'Délai Dépassé' },
-    annulée: { bg: 'bg-gray-50 hover:bg-gray-100/70 opacity-75', border: 'border-gray-400', badge: 'bg-gray-200 text-gray-700 line-through font-bold', label: 'Commande Annulée' },
+    annulee: { bg: 'bg-gray-50 hover:bg-gray-100/70 opacity-75', border: 'border-gray-400', badge: 'bg-gray-200 text-gray-700 line-through font-bold', label: 'Commande Annulée' },
     default: { bg: 'bg-white hover:bg-gray-50', border: 'border-gray-200', badge: 'bg-gray-100 text-gray-600 font-medium', label: 'Statut Inconnu' }
 };
 
@@ -54,14 +54,13 @@ export default function OrderTable({ orders = [] }) {
 
     const handleFilterChange = (filterType) => {
         setActiveFilter(filterType);
-        setCurrentPage(1); // Revenir à la page 1 lors d'un changement de filtre
+        setCurrentPage(1);
     };
 
     return (
         <div className="space-y-4">
-            {/* 🎛️ BARRE DE BOUTONS DE FILTRAGE (TABS) */}
             <div className="flex flex-wrap gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200/60">
-                {['all', 'gratuit', 'notifie', 'mise_en_demeure', 'force_majeure', 'annulée'].map((status) => {
+                {['all', 'gratuit', 'notifie', 'mise_en_demeure','post_delai', 'force_majeure', 'annulee'].map((status) => {
                     const isActive = activeFilter === status;
                     // Compter le nombre d'éléments pour chaque statut
                     const count = orders.filter(o => {
@@ -88,8 +87,6 @@ export default function OrderTable({ orders = [] }) {
                     );
                 })}
             </div>
-
-            {/* TABLEAU PRINCIPAL */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
